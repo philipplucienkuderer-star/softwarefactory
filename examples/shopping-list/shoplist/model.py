@@ -69,6 +69,16 @@ def clean_category(value):
     return value
 
 
+def clean_entry(raw, label):
+    """Check the name, amount, unit and category that list items and ingredients share."""
+    return {
+        "name": clean_name(raw.get("name"), label),
+        "amount": clean_amount(raw.get("amount")),
+        "unit": clean_unit(raw.get("unit")),
+        "category": clean_category(raw.get("category")),
+    }
+
+
 def find_by_id(records, record_id, label):
     for record in records:
         if record["id"] == record_id:

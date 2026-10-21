@@ -1,7 +1,29 @@
 """Shopping list operations."""
 
-from .model import CATEGORIES, clean_amount, clean_category, clean_name, clean_unit, find_by_id
+from .model import CATEGORIES, clean_entry, find_by_id
 from .store import allocate_id
+
+
+def _matches(item, entry):
+    """An open item with the same name and unit absorbs a new entry."""
+    return (
+        not item["checked"]
+        and item["name"].casefold() == entry["name"].casefold()
+        and item["unit"].casefold() == entry["unit"].casefold()
+    )
+
+
+def _merge(state, entry, source):
+    item = next((item for item in state["items"] if _matches(item, entry)), None)
+    if item is None:
+        item = {"id": allocate_id(state), **entry, "checked": False, "sources": []}
+        state["items"].append(item)
+    elif entry["amount"] is not None:
+        item["amount"] = round((item["amount"] or 0) + entry["amount"], 2)
+    sources = item.setdefault("sources", [])
+    if source and source not in sources:
+        sources.append(source)
+    return item
 
 
 class ShoppingList:
@@ -15,17 +37,19 @@ class ShoppingList:
         return sorted(self.store.load()["items"], key=lambda item: CATEGORIES.index(item["category"]))
 
     def add_item(self, name, amount=None, unit="", category=None):
-        item = {
-            "name": clean_name(name, "Artikel"),
-            "amount": clean_amount(amount),
-            "unit": clean_unit(unit),
-            "category": clean_category(category),
-            "checked": False,
-        }
+        """Put one item on the list and return it, merged with an open item of the same name and unit."""
+        return self.add_items([{"name": name, "amount": amount, "unit": unit, "category": category}])[0]
+
+    def add_items(self, entries, source=None):
+        """Put several items on the list in one save and return the resulting items.
+
+        `source` names the dish the entries come from. Every entry is checked
+        before anything is saved, so one bad entry leaves the list unchanged.
+        """
+        cleaned = [clean_entry(entry, "Artikel") for entry in entries]
         with self.store.update() as state:
-            item = {"id": allocate_id(state), **item}
-            state["items"].append(item)
-        return item
+            items = [_merge(state, entry, source) for entry in cleaned]
+        return items
 
     def set_checked(self, item_id, checked):
         """Tick an item off or put it back. Raises NotFound for unknown ids."""

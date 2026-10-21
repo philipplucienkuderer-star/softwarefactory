@@ -113,7 +113,7 @@ async function showList() {
     addItemForm(),
     items.length
       ? h("p", { class: "summary" }, open ? `${open} von ${items.length} noch offen` : "Alles im Korb 🎉")
-      : h("p", { class: "empty" }, "Die Liste ist leer. Trag oben ein, was du brauchst."),
+      : h("p", { class: "empty" }, "Die Liste ist leer. Trag oben etwas ein oder hol dir die Zutaten eines Gerichts."),
     groupByCategory(items).map(([category, entries]) =>
       h(
         "section",
@@ -164,7 +164,7 @@ function itemRow(item) {
       "label",
       {},
       h("input", { type: "checkbox", checked: item.checked, onchange: toggle }),
-      h("span", { class: "name" }, item.name),
+      h("span", { class: "name" }, item.name, item.sources?.length ? h("small", {}, `für ${item.sources.join(", ")}`) : null),
       h("span", { class: "qty" }, quantity(item)),
     ),
   );
@@ -214,8 +214,19 @@ function ingredientList(ingredients) {
   );
 }
 
-async function showDish(id) {
-  const { dish } = await api(`/api/dishes/${id}`);
+// Without `servings` the dish shows its own; the stepper asks the server to rescale.
+async function showDish(id, servings) {
+  const { dish } = await api(`/api/dishes/${id}${servings ? `?servings=${servings}` : ""}`);
+  const step = (delta) => showDish(id, dish.servings + delta).catch((error) => toast(error.message, "error"));
+  const shop = () =>
+    act(
+      async () => {
+        const { added } = await api(`/api/dishes/${id}/shop`, { method: "POST", body: { servings: dish.servings } });
+        toast(`${added} Zutaten für ${dish.name} auf der Liste`);
+        location.hash = "#/liste";
+      },
+      async () => {},
+    );
   const remove = () => {
     if (!confirm(`„${dish.name}“ löschen?`)) return;
     act(
@@ -227,8 +238,15 @@ async function showDish(id) {
   };
   render(
     dish.name,
-    h("p", { class: "meta" }, `Zutaten für ${dish.servings} Portionen`),
+    h(
+      "div",
+      { class: "card servings" },
+      h("button", { class: "secondary round", "aria-label": "Eine Portion weniger", disabled: dish.servings <= 1, onclick: () => step(-1) }, "−"),
+      h("p", { "aria-live": "polite" }, h("strong", {}, String(dish.servings)), " Portionen"),
+      h("button", { class: "secondary round", "aria-label": "Eine Portion mehr", disabled: dish.servings >= 50, onclick: () => step(1) }, "+"),
+    ),
     ingredientList(dish.ingredients),
+    h("button", { class: "wide", onclick: shop }, "🛒 Zutaten auf die Liste"),
     h(
       "div",
       { class: "actions" },

@@ -207,6 +207,39 @@ button.danger {
   flex: 1;
 }
 
+.name small {
+  display: block;
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+
+.servings {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.servings p {
+  margin: 0;
+  font-size: 1.05rem;
+}
+
+.servings strong {
+  font-size: 1.4rem;
+}
+
+button.round {
+  width: 44px;
+  padding: 0;
+  font-size: 1.4rem;
+}
+
+button:disabled {
+  cursor: default;
+  opacity: 0.4;
+}
+
 .qty {
   color: var(--muted);
   white-space: nowrap;

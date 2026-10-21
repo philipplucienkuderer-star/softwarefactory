@@ -9,7 +9,11 @@ The app has two tabs:
   category, and you tick items off as they go into the cart. Items are grouped
   by category in the order of a walk through a typical German supermarket.
 - `Gerichte` holds dishes with servings and ingredients. Open one to see what
-  it needs. A fresh install starts with three sample dishes.
+  it needs, and use − and + to change the servings. The amounts follow.
+  `Zutaten auf die Liste` puts every ingredient on the shopping list. If two
+  dishes need the same thing in the same unit, the list shows it once with
+  the amounts added up and names the dishes it is for. A fresh install starts
+  with three sample dishes.
 
 It needs Python 3.10+ and nothing outside the standard library. The page ships
 a web app manifest, so a phone can add it to the home screen.
@@ -40,11 +44,14 @@ python -m pytest -q
 |---|---|
 | `shoplist/store.py` | JSON file storage. One lock covers each read-modify-write cycle. Every save writes a temp file and swaps it in. |
 | `shoplist/model.py` | Input rules, categories and errors that both services share. |
-| `shoplist/shopping.py` | `ShoppingList` service: add, tick off, clear. |
-| `shoplist/dishes.py` | `DishBook` service: create, list, show, delete dishes. |
+| `shoplist/shopping.py` | `ShoppingList` service: add and merge, tick off, clear. |
+| `shoplist/dishes.py` | `DishBook` service: create, list, show, scale, delete dishes. |
 | `shoplist/web.py` | HTTP layer. `Api` turns requests into service calls and holds no business rules. |
 | `shoplist/static/` | The mobile page: plain HTML, CSS and JavaScript with no build step. |
 
-The services own validation, ordering and ids. The web layer only turns
-requests into service calls, so a CLI or another front end could reuse the
+The services own validation, ordering, merging and ids. The web layer only
+turns requests into service calls. Putting a dish on the list, for example,
+asks `DishBook` for the scaled dish and hands its ingredients to
+`ShoppingList.add_items`. Typing an item by hand goes through the same merge,
+so both paths follow one rule. A CLI or another front end could reuse the
 services as they are.

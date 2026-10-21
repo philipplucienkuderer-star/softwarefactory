@@ -51,6 +51,7 @@ class Api:
             ("POST", r"/api/dishes", self.create_dish),
             ("GET", r"/api/dishes/(\d+)", self.get_dish),
             ("DELETE", r"/api/dishes/(\d+)", self.delete_dish),
+            ("POST", r"/api/dishes/(\d+)/shop", self.shop_dish),
         ]
 
     def dispatch(self, method, path, query, body):
@@ -103,11 +104,23 @@ class Api:
         return HTTPStatus.CREATED, {"dish": dish}
 
     def get_dish(self, request):
-        return HTTPStatus.OK, {"dish": self.dishes.get(request.ids[0])}
+        """Return a dish, scaled to ?servings=N when given."""
+        if "servings" not in request.query:
+            return HTTPStatus.OK, {"dish": self.dishes.get(request.ids[0])}
+        value = request.query["servings"][-1]
+        # Pass non-digits through unchanged so the service rejects them with its own message.
+        servings = int(value) if value.isdecimal() else value
+        return HTTPStatus.OK, {"dish": self.dishes.scaled(request.ids[0], servings)}
 
     def delete_dish(self, request):
         self.dishes.delete(request.ids[0])
         return HTTPStatus.OK, {"deleted": request.ids[0]}
+
+    def shop_dish(self, request):
+        """Put a dish's ingredients, scaled to the requested servings, on the shopping list."""
+        dish = self.dishes.scaled(request.ids[0], request.body.get("servings"))
+        self.shopping.add_items(dish["ingredients"], source=dish["name"])
+        return HTTPStatus.OK, {"added": len(dish["ingredients"])}
 
 
 def build_api(store):

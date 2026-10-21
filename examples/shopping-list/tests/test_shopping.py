@@ -18,6 +18,7 @@ def test_add_item_cleans_input_and_saves_it(shopping, store):
         "unit": "l",
         "category": "Kühlregal",
         "checked": False,
+        "sources": [],
     }
     assert store.load()["items"] == [item]
 
@@ -65,3 +66,53 @@ def test_checked_items_can_be_cleared(shopping):
 def test_checking_an_unknown_item_fails(shopping):
     with pytest.raises(NotFound, match="Artikel 99 gibt es nicht"):
         shopping.set_checked(99, True)
+
+
+def test_the_same_item_is_merged_instead_of_listed_twice(shopping):
+    shopping.add_item("Zwiebel", 1, "Stk", "Obst & Gemüse")
+    merged = shopping.add_item("zwiebel", 2, "stk")
+    assert (merged["id"], merged["name"], merged["amount"]) == (1, "Zwiebel", 3.0)
+    assert len(shopping.items()) == 1
+
+
+def test_items_with_other_units_stay_separate(shopping):
+    shopping.add_item("Milch", 1, "l")
+    shopping.add_item("Milch", 200, "ml")
+    assert len(shopping.items()) == 2
+
+
+def test_ticked_items_are_not_merged(shopping):
+    milk = shopping.add_item("Milch", 1, "l")
+    shopping.set_checked(milk["id"], True)
+    shopping.add_item("Milch", 1, "l")
+    assert [(item["amount"], item["checked"]) for item in shopping.items()] == [(1.0, True), (1.0, False)]
+
+
+def test_items_without_amount_merge_too(shopping):
+    shopping.add_item("Salz")
+    assert shopping.add_item("Salz")["amount"] is None
+    assert len(shopping.items()) == 1
+
+
+def test_add_items_remembers_which_dishes_need_an_item(shopping):
+    shopping.add_item("Zwiebel", 1, "Stk", "Obst & Gemüse")
+    shopping.add_items(
+        [
+            {"name": "Zwiebel", "amount": 1, "unit": "Stk", "category": "Obst & Gemüse"},
+            {"name": "Basmatireis", "amount": 300, "unit": "g", "category": "Vorrat"},
+        ],
+        source="Gemüsecurry",
+    )
+    shopping.add_items(
+        [{"name": "Zwiebel", "amount": 0.75, "unit": "Stk", "category": "Obst & Gemüse"}],
+        source="Spaghetti Bolognese",
+    )
+    onion, rice = shopping.items()
+    assert (onion["amount"], onion["sources"]) == (2.75, ["Gemüsecurry", "Spaghetti Bolognese"])
+    assert (rice["amount"], rice["sources"]) == (300.0, ["Gemüsecurry"])
+
+
+def test_add_items_checks_every_entry_before_saving(shopping, store):
+    with pytest.raises(ValidationError, match="Artikel darf nicht leer sein"):
+        shopping.add_items([{"name": "Reis"}, {"name": ""}], source="Risotto")
+    assert not store.exists()

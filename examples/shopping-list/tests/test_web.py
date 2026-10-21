@@ -54,6 +54,34 @@ def test_create_show_and_delete_a_dish(client):
     assert client("GET", f"/api/dishes/{dish_id}") == (404, {"error": f"Gericht {dish_id} gibt es nicht."})
 
 
+def test_a_dish_can_be_scaled_and_put_on_the_list(client):
+    _, body = client(
+        "POST",
+        "/api/dishes",
+        {
+            "name": "Pfannkuchen",
+            "servings": 2,
+            "ingredients": [
+                {"name": "Mehl", "amount": 250, "unit": "g", "category": "Vorrat"},
+                {"name": "Eier", "amount": 3, "unit": "Stk", "category": "Kühlregal"},
+            ],
+        },
+    )
+    dish_id = body["dish"]["id"]
+
+    status, body = client("GET", f"/api/dishes/{dish_id}?servings=4")
+    assert status == 200
+    assert [ingredient["amount"] for ingredient in body["dish"]["ingredients"]] == [500.0, 6.0]
+
+    assert client("POST", f"/api/dishes/{dish_id}/shop", {"servings": 4}) == (200, {"added": 2})
+    assert client("POST", f"/api/dishes/{dish_id}/shop", {"servings": 2}) == (200, {"added": 2})
+    items = client("GET", "/api/items")[1]["items"]
+    assert [(item["name"], item["amount"], item["sources"]) for item in items] == [
+        ("Eier", 9.0, ["Pfannkuchen"]),
+        ("Mehl", 750.0, ["Pfannkuchen"]),
+    ]
+
+
 @pytest.mark.parametrize(
     "method, path, body, raw, status, error",
     [
@@ -64,6 +92,8 @@ def test_create_show_and_delete_a_dish(client):
         ("PATCH", "/api/items/7", {"checked": True}, None, 404, "Artikel 7 gibt es nicht."),
         ("POST", "/api/dishes", {"name": "Leer", "servings": 2, "ingredients": []}, None, 400,
          "Ein Gericht braucht mindestens eine Zutat."),
+        ("GET", "/api/dishes/1?servings=zwei", None, None, 400, "Portionen müssen eine ganze Zahl von 1 bis 50 sein."),
+        ("POST", "/api/dishes/9/shop", {"servings": 2}, None, 404, "Gericht 9 gibt es nicht."),
         ("DELETE", "/api/items", None, None, 405, "Methode nicht erlaubt."),
         ("GET", "/api/nichts", None, None, 404, "Nicht gefunden."),
     ],

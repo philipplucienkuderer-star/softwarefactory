@@ -1,13 +1,6 @@
 """Dishes and the ingredients they need."""
 
-from .model import (
-    ValidationError,
-    clean_amount,
-    clean_category,
-    clean_name,
-    clean_unit,
-    find_by_id,
-)
+from .model import ValidationError, clean_entry, clean_name, find_by_id
 from .store import allocate_id
 
 MAX_SERVINGS = 50
@@ -23,16 +16,11 @@ def clean_servings(value):
 def clean_ingredient(raw):
     if not isinstance(raw, dict):
         raise ValidationError("Jede Zutat braucht Name, Menge, Einheit und Kategorie.")
-    return {
-        "name": clean_name(raw.get("name"), "Zutat"),
-        "amount": clean_amount(raw.get("amount")),
-        "unit": clean_unit(raw.get("unit")),
-        "category": clean_category(raw.get("category")),
-    }
+    return clean_entry(raw, "Zutat")
 
 
 class DishBook:
-    """Creates, lists and deletes dishes."""
+    """Creates, lists, scales and deletes dishes."""
 
     def __init__(self, store):
         self.store = store
@@ -43,6 +31,17 @@ class DishBook:
     def get(self, dish_id):
         """Return one dish. Raises NotFound for unknown ids."""
         return find_by_id(self.store.load()["dishes"], dish_id, "Gericht")
+
+    def scaled(self, dish_id, servings):
+        """Return the dish with every amount converted to `servings`. The stored dish stays as it is."""
+        servings = clean_servings(servings)
+        dish = self.get(dish_id)
+        factor = servings / dish["servings"]
+        ingredients = [
+            {**ingredient, "amount": None if ingredient["amount"] is None else round(ingredient["amount"] * factor, 2)}
+            for ingredient in dish["ingredients"]
+        ]
+        return {**dish, "servings": servings, "ingredients": ingredients}
 
     def create(self, name, servings, ingredients):
         if not isinstance(ingredients, list) or not ingredients:

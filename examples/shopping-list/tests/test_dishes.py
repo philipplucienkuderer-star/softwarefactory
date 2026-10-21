@@ -49,6 +49,29 @@ def test_dishes_are_sorted_by_name(book):
     assert [dish["name"] for dish in book.dishes()] == ["Gemüsecurry", "Pfannkuchen", "Spaghetti Bolognese"]
 
 
+def test_scaled_converts_amounts_to_other_servings(book):
+    dish = book.create(
+        "Pasta",
+        4,
+        [
+            {"name": "Spaghetti", "amount": 500, "unit": "g"},
+            {"name": "Zwiebel", "amount": 1, "unit": "Stk"},
+            {"name": "Salz"},
+        ],
+    )
+    scaled = book.scaled(dish["id"], 3)
+    assert scaled["servings"] == 3
+    assert [ingredient["amount"] for ingredient in scaled["ingredients"]] == [375.0, 0.75, None]
+    assert [ingredient["amount"] for ingredient in book.scaled(dish["id"], 7)["ingredients"]] == [875.0, 1.75, None]
+    assert book.get(dish["id"])["servings"] == 4
+
+
+def test_scaled_rejects_invalid_servings(book):
+    dish = book.create("Pasta", 4, PASTA)
+    with pytest.raises(ValidationError, match="Portionen"):
+        book.scaled(dish["id"], 0)
+
+
 def test_delete_a_dish(book):
     dish = book.create("Pasta", 2, PASTA)
     book.delete(dish["id"])
