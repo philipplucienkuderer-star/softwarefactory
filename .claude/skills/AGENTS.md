@@ -20,6 +20,7 @@ this repo and can be copied into other repos with their checks and conventions.
 2. **Build.** Use `/code-structure` when extracting shared operations or
    choosing boundaries. Follow the project's existing architecture; the
    service layer pattern is a default for projects without a convention.
+   When coding do not overcomplicate. Code simple when possible.
 3. **Prove.** Run relevant checks. Use `/evidence-driven-testing` for changed
    runtime behavior: record the failure before fixing it and the success
    afterward. For documentation, inspect the changed instructions and verify
