@@ -1,0 +1,9 @@
+[project]
+name = "shoplist"
+version = "0.1.0"
+description = "Mobile shopping list with dishes, served by the Python standard library."
+requires-python = ">=3.10"
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]

@@ -1,0 +1,4 @@
+shoplist.json
+.artifacts/
+__pycache__/
+.pytest_cache/
